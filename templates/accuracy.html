@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HealthAssured: Prediction</title>
+</head>
+<body>
+    <h1>HealthAssured: Prediction</h1>
+    <form method="POST" action="{{ url_for('accuracy')}}">
+        <label for="news_data">Enter Text:</label><br>
+        <textarea id="news_data" name="news_data" rows="4" cols="50"></textarea><br>
+        <select name="select_notebook_file">
+            <option value="rnn_model">RNN Model</option>
+            <option value="lstm_model">LSTM Model</option>
+            <option value="gnn_model">GNN Model</option>
+        </select>
+        <select name="select_model">
+            <option value="rnn">RNN</option>
+            <!-- Add options for other models if needed -->
+        </select><br>
+        <input type="submit" value="Check">
+    </form>
+    {% if prediction %}
+    <h2>Prediction: {{ prediction }}</h2>
+    {% endif %}
+</body>
+</html>

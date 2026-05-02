@@ -1,0 +1,414 @@
+scikit-learn == 0.22.1
+pandas
+numpy
+Flask
+
+
+
+from flask import Flask, render_template, request
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import PassiveAggressiveClassifier
+import pickle
+import pandas as pd
+from sklearn.model_selection import train_test_split
+
+'''from flask import Flask, render_template, request
+import numpy as np # linear algebra
+import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
+from keras.layers import Dense, Embedding, LSTM, SpatialDropout1D
+from keras.models import Sequential
+from sklearn.feature_extraction.text import CountVectorizer
+from keras.preprocessing.text import Tokenizer
+from keras.preprocessing.sequence import pad_sequences
+from sklearn.model_selection import train_test_split
+from tensorflow.keras.models import load_model
+from tensorflow.keras.utils import to_categorical
+from keras.callbacks import EarlyStopping
+import pickle
+from tensorflow.keras.models import model_from_json
+import pandas as pd
+import numpy as np'''
+
+app = Flask(__name__)
+tfvect = TfidfVectorizer(stop_words='english', max_df=0.7)
+loaded_model = pickle.load(open('newmodel.pkl', 'rb'))
+# load json and create model
+'''json_file = open('model.json', 'r')
+loaded_model_json = json_file.read()
+json_file.close()
+loaded_model = model_from_json(loaded_model_json)
+# load weights into new model
+loaded_model.load_weights("model.h5")'''
+
+dataframe = pd.read_csv('cleaned_dataset.csv')
+x = dataframe['statement']
+y = dataframe['rating']
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=0)
+
+def misinfo_det(info):
+    tfid_x_train = tfvect.fit_transform(x_train)
+    tfid_x_test = tfvect.transform(x_test)
+    input_data = [info]
+    vectorized_input_data = tfvect.transform(input_data)
+    prediction = loaded_model.predict(vectorized_input_data)
+    return prediction
+
+'''def rnn_det(txt):
+    input_data = [txt]
+    n_most_common_words = 8000
+    tokenizer = Tokenizer(num_words=n_most_common_words, filters='!"#$%&()*+,-./:;<=>?@[\]^_`{|}~', lower=True)
+    seq = tokenizer.texts_to_sequences(input_data)
+    padded = pad_sequences(seq, maxlen=130)
+    predictionn = loaded_model.predict(padded)
+    labels = ['TRUE', 'FALSE']
+    prediction = labels[np.argmax(predictionn)]
+    return prediction'''
+
+@app.route('/')
+def home():
+    return render_template('index.html')
+
+@app.route('/predict', methods=['POST'])
+def predict():
+    if request.method == 'POST':
+        message = request.form['message']
+        pred = misinfo_det(message)
+        print(pred)
+        return render_template('index.html', prediction=pred)
+    else:
+        return render_template('index.html', prediction="Something went wrong")
+
+if __name__ == '__main__':
+    app.run(debug=True)
+
+//html chat code//
+
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Misinformation Detection System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f4;
+            margin: 0;
+        }
+
+        .chat-container {
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            width: 400px;
+            max-width: 100%;
+        }
+
+        .chat-header {
+            background-color: #4CAF50;
+            color: #ffffff;
+            padding: 15px 20px;
+        }
+
+        .chat-header h1 {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .chat-body {
+            padding: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .chat-message {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+
+        .message-received,
+        .message-sent {
+            max-width: 70%;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .message-received {
+            background-color: #f2f2f2;
+            align-self: flex-start;
+        }
+
+        .message-sent {
+            background-color: #DCF8C6;
+            align-self: flex-end;
+        }
+
+        .chat-form {
+            display: flex;
+            margin-top: 20px;
+        }
+
+        .chat-form input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .chat-form button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #4CAF50;
+            color: #ffffff;
+            border-radius: 5px;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+
+        .chat-results {
+            padding: 20px;
+        }
+
+        .chat-results p {
+            margin: 0;
+        }
+
+    </style>
+</head>
+
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>Misinformation Detector</h1>
+        </div>
+
+        <div class="chat-body" id="chatBody">
+            <div class="chat-message">
+                <div class="message-received">
+                    <p>Hello, how can I assist you today?</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="chat-form">
+            <input type="text" id="userInput" placeholder="Type your message here" required>
+            <button onclick="sendMessage()">Send</button>
+        </div>
+
+        <div class="chat-results" id="chatResults">
+        </div>
+    </div>
+
+    <script>
+        function sendMessage() {
+            var userInput = document.getElementById('userInput').value;
+            var chatBody = document.getElementById('chatBody');
+            var chatResults = document.getElementById('chatResults');
+            var userMessage = '<div class="message-sent"><p>' + userInput + '</p></div>';
+            var systemMessage = '';
+
+            // Perform your prediction logic here
+            // For example:
+            var prediction = ''; // Assuming prediction value
+
+            if (prediction === 'TRUE') {
+                systemMessage = '<div class="message-received"><p>Correct Information</p></div>';
+            } else if(prediction === 'FALSE') {
+                systemMessage = '<div class="message-received"><p>Incorrect Information</p></div>';
+            } else{
+				systemMessage = '<div class="message-received"><p>Dont talk, please :)</p></div>';
+			}
+
+            chatBody.innerHTML += userMessage;
+            setTimeout(function() {
+                chatBody.innerHTML += systemMessage;
+            }, 1000);
+        }
+    </script>
+</body>
+
+</html>
+
+
+*************************************************Normal HTML CODE******************************************************************
+
+<!DOCTYPE html>
+<html >
+<head>
+  	<meta charset="UTF-8">
+  	<title>Misinformation Detection System</title>
+  	<link href='https://fonts.googleapis.com/css?family=Pacifico' rel='stylesheet' type='text/css'>
+	<link href='https://fonts.googleapis.com/css?family=Arimo' rel='stylesheet' type='text/css'>
+	<link href='https://fonts.googleapis.com/css?family=Hind:300' rel='stylesheet' type='text/css'>
+	<link href='https://fonts.googleapis.com/css?family=Open+Sans+Condensed:300' rel='stylesheet' type='text/css'>
+	<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+</head>
+
+<body>
+ <div class="login">
+	<h1>Misinformation Detector</h1>
+
+    <form action="{{ url_for('predict')}}" method="POST">
+    	<textarea  name="message" rows="6" cols="50" required="required" style="font-size: 18pt"></textarea>
+		<br> </br>
+        <button type="submit" class="btn btn-primary btn-block btn-large">Predict</button>
+
+    	<div class="results">
+
+			{% if prediction == ['FALSE']%}
+				<h2 style="color:red;">Incorrect Information </h2>
+			{% elif prediction == ['TRUE']%}
+				<h2 style="color:green;"><b>Correct Information</b></h2>
+			{% endif %}
+
+		</div>
+
+    </form>
+
+</div>
+
+
+
+**************************************************Chat Interface******************************************************************
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Misinformation Detection System</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f4f4f4;
+            margin: 0;
+        }
+
+        .chat-container {
+            background-color: #ffffff;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            width: 400px;
+            max-width: 100%;
+        }
+
+        .chat-header {
+            background-color: #4CAF50;
+            color: #ffffff;
+            padding: 15px 20px;
+        }
+
+        .chat-header h1 {
+            margin: 0;
+            font-size: 20px;
+        }
+
+        .chat-body {
+            padding: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .chat-message {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 20px;
+        }
+
+        .message-received,
+        .message-sent {
+            max-width: 70%;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .message-received {
+            background-color: #f2f2f2;
+            align-self: flex-start;
+        }
+
+        .message-sent {
+            background-color: #DCF8C6;
+            align-self: flex-end;
+        }
+
+        .chat-form {
+            display: flex;
+            margin-top: 20px;
+        }
+
+        .chat-form input[type="text"] {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .chat-form button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #4CAF50;
+            color: #ffffff;
+            border-radius: 5px;
+            margin-left: 10px;
+            cursor: pointer;
+        }
+
+        .chat-results {
+            padding: 20px;
+        }
+
+        .chat-results p {
+            margin: 0;
+        }
+
+    </style>
+</head>
+
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <h1>Misinformation Detector</h1>
+        </div>
+
+        <div class="chat-body" id="chatBody">
+            <div class="chat-message">
+                <div class="message-received">
+                    <p>Hello, how can I assist you today?</p>
+                </div>
+            </div>
+        </div>
+		<form action="{{ url_for('predict')}}" method="POST">
+			<div class="chat-form">
+				<input type="text" id="userInput" name="userInput" placeholder="Type your message here" required>
+				<button type="submit">Send</button>
+			</div>
+		</form>
+        <div class="chat-body" id="chatBody">
+			<div class="chat-message">
+				{% if prediction == ['FALSE'] %}
+				<div class="message-received"><p>Inaccurate Information</p></div>
+				{% elif prediction == ['TRUE'] %}
+				<div class="message-received"><p>Accurate Information</p></div>
+				{% endif %}
+			</div>	
+		</div>
+        
+    </div>
+</body>
+</html>
